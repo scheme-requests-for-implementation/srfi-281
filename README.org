@@ -9,6 +9,8 @@
 
 keywords: [[https://srfi.schemers.org/?keywords=data-structure][Data Structure]]
 
+library-name: bytevectors
+
 This repository hosts [[https://srfi.schemers.org/srfi-281/][SRFI 281]]: Bytevector Utilities, a [[https://srfi.schemers.org/][Scheme Request for Implementation]].
 
 This SRFI is in /draft/ status.
