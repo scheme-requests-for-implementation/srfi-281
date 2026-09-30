@@ -603,7 +603,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 
 <p>
   It is an error if <var>e</var> does not satisfy
-  <a href="#deserialization-error"><code>deserialization-error?</code></a>.
+  <a href="#deserialization-errorp"><code>deserialization-error?</code></a>.
 </p>
 
 <p>
@@ -620,7 +620,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 
 <p>
   It is an error if <var>e</var> does not satisfy
-  <a href="#deserialization-error"><code>deserialization-error?</code></a>.
+  <a href="#deserialization-errorp"><code>deserialization-error?</code></a>.
 </p>
 
 <p>
@@ -635,7 +635,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 </div>
 <p>
   It is an error if <var>e</var> does not satisfy
-  <a href="#deserialization-error"><code>deserialization-error?</code></a>.
+  <a href="#deserialization-errorp"><code>deserialization-error?</code></a>.
 </p>
 
 <p>
@@ -676,7 +676,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 <p>
   If <var>string</var> between <var>start</var> and <var>end</var>
   is not made up of pairs of hex digits, an error satisfying <a
-  href="#deserialization-error"><code>deserializtion-error?</code></a>
+  href="#deserialization-errorp"><code>deserializtion-error?</code></a>
   is raised with the invalid part of the string as the start and end.
 </p>
 
@@ -734,7 +734,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 <p>
   If <var>string</var> in between the two indices is
   not a valid base64 string, an error satisfying <a
-  href="#deserialization-error"><code>deserializtion-error?</code></a>
+  href="#deserialization-errorp"><code>deserializtion-error?</code></a>
   is raised with the invalid part of the string as the start and end.
 </p>
 
@@ -1284,7 +1284,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 <dl>
 <dt><code>raise</code></dt>
 <dd>Raise an exception that satisfies <a
-href="#unicode-decoding-error"><code>unicode-decoding-error?</code></a> when
+href="#unicode-decoding-errorp"><code>unicode-decoding-error?</code></a> when
 the procedure attempts to decode invalid
     data.</dd>
 <dt><code>replace</code></dt>
@@ -1377,7 +1377,7 @@ the procedure attempts to decode invalid
 </div>
 <p>
   It is an error if <var>e</var> does not satisfy
-  <a href="#unicode-decoding-error"><code>unicode-decoding-error?</code></a>.
+  <a href="#unicode-decoding-errorp"><code>unicode-decoding-error?</code></a>.
 </p>
 
 <p>
