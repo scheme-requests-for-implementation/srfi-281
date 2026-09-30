@@ -45,7 +45,8 @@
     ((#\C #\c) #xC)
     ((#\D #\d) #xD)
     ((#\E #\e) #xE)
-    ((#\F #\f) #xF)))
+    ((#\F #\f) #xF)
+    (else #f)))
 
 (define hex-string->bytevector
   (case-lambda
@@ -58,14 +59,36 @@
        (error "not a valid length for string" string start end))
      (call-with-port (open-output-bytevector)
        (lambda (port)
-         (do ((vec (string->vector string start end))
-              (i 0 (+ i 2)))
-             ((= i (vector-length vec)) (get-output-bytevector port))
-           (let ((b1 (hex-digit->value (vector-ref vec i)))
-                 (b2 (hex-digit->value (vector-ref vec (+ i 1)))))
-             (write-u8 (fxior (fxarithmetic-shift-left b1 4)
-                              b2)
-                       port))))))))
+         (define vec (string->vector string start end))
+         (define (find-next-hex-digit i)
+           (do ((i i (+ i 1)))
+               ((or (= i (vector-length vec))
+                    (not (char-whitespace? (vector-ref vec i))))
+                i)))
+         (define (convert-digit i)
+           (let ((i (find-next-hex-digit i)))
+             (if (= i (vector-length vec))
+                 (get-output-bytevector port)
+                 (let ((j (find-next-hex-digit (+ i 1))))
+                   (when (= j (vector-length vec))
+                     (raise-deserializerion-error
+                      'hex-string->bytevector
+                      "truncated at end"
+                      i
+                      j))
+                   (let ((b1 (hex-digit->value (vector-ref vec i)))
+                         (b2 (hex-digit->value (vector-ref vec j))))
+                     (unless (and b1 b2)
+                       (raise-deserialization-error
+                        'hex-string->bytevector
+                        "invalid hex double"
+                        i
+                        (+ j 1)))
+                     (write-u8 (fxior (fxarithmetic-shift-left b1 4)
+                                      b2)
+                               port)
+                     (convert-digit (+ j 1)))))))
+         (convert-digit 0))))))
 
 (define bytevector->base64
   (case-lambda
@@ -176,15 +199,13 @@
                       (not (standard-base64-char? (string-ref digits 0)))
                       (not (standard-base64-char? (string-ref digits 1)))))
        (error "invalid base64 digits" digits))
-     (unless (zero? (modulo (- end start) 4))
-       (error "a valid base64 string has a length that is a multple of 4"
-              string start end))
      (unless (<= 0 start end (string-length string))
        (error "invalid start and end" string start end))
      (let ((digits (or digits "+/")))
        (call-with-port (open-output-bytevector)
          (lambda (port)
            (define vec (string->vector string start end))
+           (define len (vector-length vec))
            (define for62 (string-ref digits 0))
            (define for63 (string-ref digits 1))
            (define (convert char)
@@ -211,32 +232,71 @@
                   ((#\P) 15) ((#\g) 32) ((#\x) 49)
                   ((#\Q) 16) ((#\h) 33) ((#\y) 50)
                   ((#\=) #f)
-                  (else (error "invalid char in string"
-                               char))))))
+                  (else 'bad)))))
+           (define (skip-to i)
+             (do ((i i (+ i 1)))
+                 ((or (>= i len)
+                      (not (char-whitespace? (vector-ref vec i))))
+                  i)))
            (define (convert-block i)
              ;; [012345] [670123] [456701] [234567]
-             (let ((d1 (convert (vector-ref vec i)))
-                   (d2 (convert (vector-ref vec (+ i 1))))
-                   (d3 (convert (vector-ref vec (+ i 2))))
-                   (d4 (convert (vector-ref vec (+ i 3)))))
-               (write-u8 (fxior (fxarithmetic-shift-left d1 2)
-                                (fxarithmetic-shift-right d2 4))
-                         port)
-               (when d3
-                 (write-u8 (fxior (fxarithmetic-shift-left
-                                   (fxand d2 #xF)
-                                   4)
-                                  (fxarithmetic-shift-right d3 2))
-                           port))
-               (when d4
-                 (write-u8 (fxior (fxarithmetic-shift-left
-                                   (fxand d3 #x3)
-                                   6)
-                                  d4)
-                           port))
-               (loop (+ i 4))))
+             (let* ((i2 (skip-to (+ i 1)))
+                    (i3 (skip-to (+ i2 1)))
+                    (i4 (skip-to (+ i3 1))))
+               (when (or (>= i2 len)
+                         (>= i3 len)
+                         (>= i4 len))
+                 (raise-deserialization-error
+                  'base64->bytevector
+                  "truncated"
+                  s
+                  i
+                  (min i4 len)))
+               (let* ((d1 (convert (vector-ref vec i)))
+                      (d2 (convert (vector-ref vec i2)))
+                      (d3 (convert (vector-ref vec i3)))
+                      (d4 (convert (vector-ref vec i4))))
+                 (when (or (eq? d1 'bad)
+                           (eq? d2 'bad)
+                           (eq? d3 'bad)
+                           (eq? d4 'bad))
+                   (raise-deserialization-error
+                    'base64->bytevector
+                    "invalid base64 characters"
+                    s
+                    i
+                    (+ i4 1)))
+                 (write-u8 (fxior (fxarithmetic-shift-left d1 2)
+                                  (fxarithmetic-shift-right d2 4))
+                           port)
+                 (when d3
+                   (write-u8 (fxior (fxarithmetic-shift-left
+                                     (fxand d2 #xF)
+                                     4)
+                                    (fxarithmetic-shift-right d3 2))
+                             port))
+                 (when d4
+                   (write-u8 (fxior (fxarithmetic-shift-left
+                                     (fxand d3 #x3)
+                                     6)
+                                    d4)
+                             port))
+                 (if (or (not d3) (not d4))
+                     (ensure-end (+ i4 1))
+                     (loop (+ i4 1))))))
+           (define (ensure-end i)
+             (let ((j (skip-to i)))
+               (unless (>= j len)
+                 (raise-deserialization-error
+                  'base64->bytevector
+                  "data after padding characters"
+                  string
+                  i
+                  j))
+               (get-output-bytevector port)))
            (define (loop i)
-             (if (>= i (vector-length vec))
-                 (get-output-bytevector port)
-                 (convert-block i)))
+             (let ((i (skip-to i)))
+               (if (>= i len)
+                   (get-output-bytevector port)
+                   (convert-block i))))
            (loop 0)))))))

@@ -38,61 +38,62 @@
                     (write-char (integer->char b) port)
                     (read-first-byte (+ i 1)))
                    ((continuation-byte? b)
-                    (handle-error i "continuation byte")
+                    (handle-error i (+ i 1) "continuation byte")
                     (read-first-byte (+ i 1)))
                    ((fx<=? #xC0 b #xC1)
-                    (handle-error i "overlong start byte")
+                    (handle-error i (+ i 1) "overlong start byte")
                     (read-first-byte (+ i 1)))
                    ((fx<=? #xC2 b #xDF)
-                    (read-continuation-bytes (+ i 1)
+                    (read-continuation-bytes i (+ i 1)
                                              (fxand b #x1F)
                                              1))
-                   ((fx=? b #xE0) (read-after-E0 (+ i 1)))
+                   ((fx=? b #xE0) (read-after-E0 i))
                    ((fx<=? #xE1 b #xEC)
-                    (read-continuation-bytes (+ i 1)
+                    (read-continuation-bytes i (+ i 1)
                                              (fxand b #xF)
                                              2))
-                   ((fx=? b #xED) (read-ED (+ i 1)))
+                   ((fx=? b #xED) (read-ED i))
                    ((fx<=? #xEE b #xEF)
-                    (read-continuation-bytes (+ i 1)
+                    (read-continuation-bytes i (+ i 1)
                                              (fxand b #xF)
                                              2))
-                   ((fx=? b #xF0) (read-F0 (+ i 1)))
+                   ((fx=? b #xF0) (read-F0 i))
                    ((fx<=? #xF1 b #xF3)
-                    (read-continuation-bytes (+ i 1)
+                    (read-continuation-bytes i (+ i 1)
                                              (fxand b #x7)
                                              3))
-                   ((fx=? b #xF4) (read-F4 (+ i 1)))
+                   ((fx=? b #xF4) (read-F4 i))
                    (else
-                    (handle-error i "invalid byte")
+                    (handle-error i (+ i 1) "invalid byte")
                     (read-first-byte (+ i 1)))))))
-         (define (handle-error i emsg)
+         (define (handle-error start end emsg)
            (case error-handling-mode
              ((raise)
-              (raise-i/o-decoding-error 'utf8->string
-                                        bv
-                                        emsg
-                                        i))
+              (raise-unicode-decoding-error 'utf8->string
+                                            emsg
+                                            bv
+                                            start end))
              ((ignore))
              ((replace) (write-char #\xFFFD port))))
-         (define (truncated-at-end i)
-           (handle-error truncated-at-end i)
+         (define (truncated-at-end start end)
+           (handle-error start end "truncated at end")
            (get-output-string port))
-         (define (read-after-E0 i)
+         (define (read-after-E0 start)
+           (let ((i (+ start 1)))
+             (if (= i (bytevector-length bv))
+                 (truncated-at-end start i)
+                 (let ((b (bytevector-u8-ref bv i)))
+                   (cond
+                     ((fx<=? #x80 b #x9F)
+                      (handle-error start i "overlong second byte of two-byte sequence")
+                      (read-first-byte i))
+                     (else
+                      (read-continuation-bytes start i
+                                               (fxand #xE0 #x1F)
+                                               2)))))))
+         (define (read-continuation-bytes start i acc rest)
            (if (= i (bytevector-length bv))
-               (truncated-at-end i)
-               (let ((b (bytevector-u8-ref bv i)))
-                 (cond
-                   ((fx<=? #x80 b #x9F)
-                    (handle-error i "overlong second byte of two-byte sequence")
-                    (read-first-byte i))
-                   (else
-                    (read-continuation-bytes i
-                                             (fxand #xE0 #x1F)
-                                             2))))))
-         (define (read-continuation-bytes i acc rest)
-           (if (= i (bytevector-length bv))
-               (truncated-at-end i)
+               (truncated-at-end start i)
                (let ((b (bytevector-u8-ref bv i)))
                  (cond
                    ((continuation-byte? b)
@@ -105,53 +106,56 @@
                             (write-char (integer->char acc)
                                         port)
                             (read-first-byte (+ i 1)))
-                          (read-continuation-bytes (+ i 1)
+                          (read-continuation-bytes start (+ i 1)
                                                    acc
                                                    (fx- rest 1)))))
                    (else
-                    (handle-error i "truncated")
+                    (handle-error start i "truncated")
                     (read-first-byte i))))))
-         (define (read-ED i)
-           (if (= i (bytevector-length bv))
-               (truncated-at-end i)
-               (let ((b (bytevector-u8-ref bv i)))
-                 (cond
-                   ((fx<=? #x80 b #x9F)
-                    (read-continuation-bytes i
-                                             (fxand #xED #xF)
-                                             2))
-                   ((continuation-byte? b)
-                    (handle-error i "surrogate codepoint")
-                    (read-first-byte i))
-                   (else
-                    (handle-error i "not a continuation byte")
-                    (read-first-byte i))))))
-         (define (read-F0 i)
-           (if (= i (bytevector-length bv))
-               (truncated-at-end i)
-               (let ((b (bytevector-u8-ref bv i)))
-                 (cond
-                   ((fx<=? #x80 b #x8F)
-                    (handle-error i "overlong 4-byte encoding")
-                    (read-first-byte i))
-                   (else
-                    (read-continuation-bytes i
-                                             (fxand #xF0 #x7)
-                                             3))))))
-         (define (read-F4 i)
-           (if (= i (bytevector-length bv))
-               (truncated-at-end i)
-               (let ((b (bytevector-u8-ref bv i)))
-                 (cond
-                   ((fx<=? #x80 b #x8F)
-                    (read-continuation-bytes i
-                                             (fxand #xF4 #x7)
-                                             3))
-                   ((continuation-byte? b)
-                    (handle-error i "non-Unicode value")
-                    (read-first-byte i))
-                   (else (handle-error i "not a continuation byte")
-                         (read-first-byte i))))))
+         (define (read-ED start)
+           (let ((i (+ start 1)))
+             (if (= i (bytevector-length bv))
+                 (truncated-at-end start i)
+                 (let ((b (bytevector-u8-ref bv i)))
+                   (cond
+                     ((fx<=? #x80 b #x9F)
+                      (read-continuation-bytes start i
+                                               (fxand #xED #xF)
+                                               2))
+                     ((continuation-byte? b)
+                      (handle-error start i "surrogate codepoint")
+                      (read-first-byte i))
+                     (else
+                      (handle-error start i "not a continuation byte")
+                      (read-first-byte i)))))))
+         (define (read-F0 start)
+           (let ((i (+ start 1)))
+             (if (= i (bytevector-length bv))
+                 (truncated-at-end start i)
+                 (let ((b (bytevector-u8-ref bv i)))
+                   (cond
+                     ((fx<=? #x80 b #x8F)
+                      (handle-error start i "overlong 4-byte encoding")
+                      (read-first-byte i))
+                     (else
+                      (read-continuation-bytes start i
+                                               (fxand #xF0 #x7)
+                                               3)))))))
+         (define (read-F4 start)
+           (let ((i (+ start 1)))
+             (if (= i (bytevector-length bv))
+                 (truncated-at-end start i)
+                 (let ((b (bytevector-u8-ref bv i)))
+                   (cond
+                     ((fx<=? #x80 b #x8F)
+                      (read-continuation-bytes start i
+                                               (fxand #xF4 #x7)
+                                               3))
+                     ((continuation-byte? b)
+                      (handle-error start i "non-Unicode value")
+                      (read-first-byte i))
+                     (else (handle-error start i "not a continuation byte")
+                           (read-first-byte i)))))))
          (read-first-byte start))))))
 
 (define string->utf8
@@ -255,10 +259,11 @@
        ((not (can-read-16? start end))
         (case error-handling-mode
           ((raise)
-           (raise-i/o-decoding-error 'utf16->string
-                                     bv
-                                     "too short"
-                                     start))
+           (raise-unicode-decoding-error 'utf16->string
+                                         "too short"
+                                         bv
+                                         start
+                                         (+ start 1)))
           ((ignore) #u8())
           ((replace) (bytevector #\xFFFD))))
        (else
@@ -275,13 +280,11 @@
                                (values endianness start)))))))
           (call-with-port (open-output-string)
             (lambda (port)
-              (define (handle-error i emsg)
+              (define (handle-error start end emsg)
                 (case error-handling-mode
                   ((raise)
-                   (raise-i/o-decoding-error 'utf16->string
-                                             bv
-                                             emsg
-                                             i))
+                   (raise-unicode-decoding-error 'utf16->string
+                                                 emsg bv start end))
                   ((ignore))
                   ((replace) (write-char #\xFFFD port))))
               (define (read-word i)
@@ -292,41 +295,42 @@
                     (let ((word (read-word i)))
                       (cond
                         ((fx<=? #xD800 word #xDBFF)
-                         (read-surrogate-pair word (+ i 2)))
+                         (read-surrogate-pair word i))
                         ((fx<=? #xDC00 word #xDFFF)
-                         (handle-error "lone high surrogate" i)
+                         (handle-error i (+ i 2) "lone high surrogate")
                          (read-first-word (+ i 2)))
                         (else
                          (write-char (integer->char word) port)
                          (read-first-word (+ i 2)))))))
-              (define (read-surrogate-pair low i)
-                (if (not (can-read-16? i end))
-                    (begin
-                      (handle-error "truncated surrogate pair" i)
-                      (get-output-string port))
-                    (let ((word (read-word i)))
-                      (cond
-                        ((fx<=? #xDC00 word #xDFFF)
-                         (let* ((low (fxand low #x3FF))
-                                (upper (fxand (fx+ 1
-                                                   (fxarithmetic-shift-right
-                                                    low
-                                                    6))
-                                              #x1F))
-                                (low-low (fxand low #x3F)))
-                           (write-char (integer->char
-                                        (fxior (fxarithmetic-shift-left
-                                                upper
-                                                16)
-                                               (fxarithmetic-shift-left
-                                                low-low
-                                                10)
-                                               (fxand word #x3FF)))
-                                       port)
-                           (read-first-word (+ i 2))))
-                        (else
-                         (handle-error "lone low surrogate" (- i 2))
-                         (read-first-word i))))))
+              (define (read-surrogate-pair low start)
+                (let ((i (+ start 2)))
+                  (if (not (can-read-16? i end))
+                      (begin
+                        (handle-error start i "truncated surrogate pair")
+                        (get-output-string port))
+                      (let ((word (read-word i)))
+                        (cond
+                          ((fx<=? #xDC00 word #xDFFF)
+                           (let* ((low (fxand low #x3FF))
+                                  (upper (fxand (fx+ 1
+                                                     (fxarithmetic-shift-right
+                                                      low
+                                                      6))
+                                                #x1F))
+                                  (low-low (fxand low #x3F)))
+                             (write-char (integer->char
+                                          (fxior (fxarithmetic-shift-left
+                                                  upper
+                                                  16)
+                                                 (fxarithmetic-shift-left
+                                                  low-low
+                                                  10)
+                                                 (fxand word #x3FF)))
+                                         port)
+                             (read-first-word (+ i 2))))
+                          (else
+                           (handle-error start i "lone low surrogate")
+                           (read-first-word i)))))))
               (read-first-word start)))))))))
 
 (define string->utf16
@@ -457,10 +461,11 @@
        ((not (can-read-32? start end))
         (case error-handling-mode
           ((raise)
-           (raise-i/o-decoding-error 'utf32->string
-                                     bv
-                                     "too short"
-                                     start))
+           (raise-unicode-decoding-error 'utf32->string
+                                         "too short"
+                                         bv
+                                         start
+                                         end))
           ((ignore) #u8())
           ((replace) (bytevector #\xFFFD))))
        (else
@@ -478,13 +483,12 @@
                                (values endianness start)))))))
           (call-with-port (open-output-string)
             (lambda (port)
-              (define (handle-error i emsg)
+              (define (handle-error start end emsg)
                 (case error-handling-mode
                   ((raise)
-                   (raise-i/o-decoding-error 'utf32->string
-                                             bv
-                                             emsg
-                                             i))
+                   (raise-unicode-decoding-error 'utf32->string
+                                                 emsg
+                                                 bv start end))
                   ((ignore))
                   ((replace) (write-char #\xFFFD port))))
               (define (read-word i)
@@ -493,14 +497,16 @@
                 (cond
                   ((= i end) (get-output-string port))
                   ((not (can-read-32? i end))
-                   (handle-error i "truncated at end")
+                   (handle-error start end "truncated at end")
                    (get-output-string port))
                   (else
                    (let ((word (read-word i)))
                      (when (> word #x10FFFF)
-                       (handle-error i "non-Unicode character"))
+                       (handle-error i (+ i 4)
+                                     "non-Unicode character"))
                      (when (fx<=? #xD800 word #xDFFF)
-                       (handle-error i "surrogate codepoint"))
+                       (handle-error i (+ i 4)
+                                     "surrogate codepoint"))
                      (write-char (integer->char word) port)
                      (loop (+ i 4))))))))))))))
 

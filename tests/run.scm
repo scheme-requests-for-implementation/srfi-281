@@ -2,8 +2,12 @@
 ;
 ; SPDX-License-Identifier: MIT
 
+;; TODO: This test suite should be refactored to make it easier to test
+;; individual components.
+
 (import (except (scheme base)
                 make-bytevector
+                bytevector
                 bytevector-u8-ref
                 bytevector-u8-set!
                 string->utf8
@@ -181,33 +185,9 @@
   (test-assert "truncated right" (not (bytevector=? #u8(1 2 3 4) #u8(1 2 3))))
   (test-assert "multiple equal followed by unequal" (not (bytevector=? #u8() #u8() #u8(1)))))
 
-(test-group "trichotomy of strict bytevector order"
-  (test-property
-   (lambda (bv1 bv2)
-     (let ((< (bytevector<? bv1 bv2))
-           (= (bytevector=? bv1 bv2))
-           (> (bytevector>? bv1 bv2)))
-       (or (and < (not =) (not >))
-           (and = (not <) (not >))
-           (and > (not =) (not <)))))
-   (list (bytevector-generator)
-         (bytevector-generator))))
-
-(test-group "antisymmetry of weak bytevector order"
-  (test-property
-   (lambda (bv1 bv2)
-     (or (bytevector=? bv1 bv2)
-         (let ((<= (bytevector<=? bv1 bv2))
-               (>= (bytevector>=? bv1 bv2)))
-           (or (and <= (not >=))
-               (and >= (not <=))))))
-   (list (bytevector-generator)
-         (bytevector-generator))))
-
-(test-group "bytevector<?"
-  (test-assert (bytevector<? #u8(1 2 3) #u8(1 2 4)))
-  (test-assert (bytevector<? #u8(1 2 3) #u8(1 2 3 4)))
-  (test-assert (not (bytevector<? #u8(1 2 3) #u8(1 2 3)))))
+(test-group "bytevector"
+  (test-equal #u8(#x80 #xFF 0 1 #x80)
+              (bytevector -128 -1 0 1 128)))
 
 (test-group "bytevector-fill!"
   #;(test-group "exhaustive test of negative values"
@@ -585,6 +565,10 @@
 (test-group "hex-string->bytevector"
   (test-equal #u8(#xAA #xBB #xCC #xDD)
               (hex-string->bytevector "AaBBcCdd"))
+  (let ((s "AAB!CCDD"))
+    (guard (x (else (and (deserialization-error? x)
+                         (eqv? (deserialization-error-meesage x) s))))
+      (hex-string->bytevector s)))
   (test-equal #u8(#xBB #xCC #xDD)
               (hex-string->bytevector "AaBBcCdd"
                                       2))
@@ -655,9 +639,14 @@
   (test-equal #u8(102) (base64->bytevector "Zg=="))
   (test-equal #u8(102 111) (base64->bytevector "Zm8="))
   (test-equal #u8(102 111 111) (base64->bytevector "Zm9v"))
+  (let ((s "Zm9!v"))
+    (guard (x (else (and (deserialization-error? x)
+                         (eqv? (deserialization-error-meesage x) s))))
+      (base64->bytevector s)))
   (test-equal #u8(102 111 111 98) (base64->bytevector "Zm9vYg=="))
   (test-equal #u8(102 111 111 98 97) (base64->bytevector "Zm9vYmE="))
   (test-equal #u8(102 111 111 98 97 114) (base64->bytevector "Zm9vYmFy"))
+  (test-equal #u8(102 111 111 98 97 114) (base64->bytevector "    Z m 9 v\n Y m F y    "))
   (test-equal #u8(#b11111011 #b11111111 #b10111110)
               (base64->bytevector "+/++"))
   (test-equal #u8(#b11111011 #b11111111 #b10111110)
@@ -954,18 +943,19 @@
                (substring string start end))))
    (list (string+range-generator))))
 
-(define-syntax test-raises-i/o-error
+;; TODO: Test elements of error object
+(define-syntax test-raises-unicode-error
   (syntax-rules ()
     ((_ expression)
      (test-assert
-      (guard (x (else (i/o-decoding-error? x)))
+      (guard (x (else (unicode-decoding-error? x)))
         expression
         #f)))))
 
 #;(test-group "exhaustive check for two-byte overlong encodings"
   (do ((i #xC0 (+ i 1)))
       ((= i #xC2))
-    (test-raises-i/o-error
+    (test-raises-unicode-error
      (utf8->string (bytevector i)))
     (test-equal (string (integer->char #xFFFD))
                 (utf8->string (bytevector i)
@@ -979,7 +969,7 @@
                               'ignore))
     (do ((j #x80 (+ j 1)))
         ((> j #xBF))
-      (test-raises-i/o-error
+      (test-raises-unicode-error
        (utf8->string (bytevector i j)))
       (test-equal (string (integer->char #xFFFD)
                           (integer->char #xFFFD))
@@ -993,7 +983,7 @@
 #;(test-group "exhaustive check for three byte overlong encoding"
   (do ((i #x80 (+ i 1)))
       ((= i #xA0))
-    (test-raises-i/o-error
+    (test-raises-unicode-error
      (utf8->string (bytevector #xE0 i)))
     (test-equal (string (integer->char #xFFFD)
                         (integer->char #xFFFD))
@@ -1010,7 +1000,7 @@
 (test-group "check for three byte truncated encoding"
   (do ((i #xA0 (+ i 1)))
       ((> i #xBF))
-    (test-raises-i/o-error
+    (test-raises-unicode-error
      (utf8->string (bytevector #xE0 i)))
     (test-equal (string (integer->char #xFFFD))
                 (utf8->string (bytevector #xE0 i)
@@ -1028,7 +1018,7 @@
       ((> i #xBF))
     (do ((j #x80 (+ j 1)))
         ((> j #xBF))
-      (test-raises-i/o-error
+      (test-raises-unicode-error
        (utf8->string (bytevector #xED i j)))
       (test-equal (string (integer->char #xFFFD)
                           (integer->char #xFFFD)
@@ -1044,7 +1034,7 @@
                                 'ignore)))))
 
 (test-group "encoding above U+10FFFF"
-  (test-raises-i/o-error
+  (test-raises-unicode-error
    (utf8->string #u8(#xF4 #x90 #x80 #x80)))
   (test-equal (string (integer->char #xFFFD)
                       (integer->char #xFFFD)
@@ -1094,12 +1084,12 @@
       ((= i #xDFFF))
     (let ((bv (make-bytevector 2)))
       (bytevector-u16-set! bv 0 i 'big)
-      (test-raises-i/o-error (utf16->string bv 'big))
+      (test-raises-unicode-error (utf16->string bv 'big))
       (test-equal "\xFFFD;"
                   (utf16->string bv 'big #f 0 2 'replace))
       (test-equal "" (utf16->string bv 'big #f 0 2 'ignore))
       (bytevector-u16-set! bv 0 i 'little)
-      (test-raises-i/o-error (utf16->string bv 'little))
+      (test-raises-unicode-error (utf16->string bv 'little))
       (test-equal "\xFFFD;"
                   (utf16->string bv 'little #f 0 2 'replace))
       (test-equal ""

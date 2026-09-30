@@ -28,6 +28,13 @@
      (let ((fill (check-fill fill)))
        (r7rs:make-bytevector k fill)))))
 
+(define (bytevector . rest)
+  (do ((bv (make-bytevector (length rest)))
+       (rest rest (cdr rest))
+       (i 0 (+ i 1)))
+      ((= i (bytevector-length bv)) bv)
+    (bytevector-u8-set! bv i (check-fill (car rest)))))
+
 (define (bytevector=? x y . rest)
   (unless (bytevector? x)
     (error "not a bytevector" x))
@@ -38,51 +45,6 @@
       (else (and (equal? x y)
                  (or (null? rest)
                      (loop y (car rest) (cdr rest))))))))
-
-(define (bytevector<?-2 x y)
-  (let loop ((i 0))
-    (cond
-      ((= i (bytevector-length x))
-       (< i (bytevector-length y)))
-      ((= i (bytevector-length y)) #f)
-      (else
-       (let ((xb (bytevector-u8-ref x i))
-             (yb (bytevector-u8-ref y i)))
-         (cond
-           ((fx<? xb yb))
-           (else (and (fx=? xb yb) (loop (+ i 1))))))))))
-
-(define (bytevector<=?-2 x y)
-  (let loop ((i 0))
-    (cond
-      ((= i (bytevector-length x))
-       (<= i (bytevector-length y)))
-      ((= i (bytevector-length y)) #f)
-      (else
-       (let ((xb (bytevector-u8-ref x i))
-             (yb (bytevector-u8-ref y i)))
-         (cond
-           ((fx<? xb yb))
-           (else (and (fx=? xb yb) (loop (+ i 1))))))))))
-
-(define (make-nary binary)
-  (lambda (x y . rest)
-    (unless (bytevector? x)
-      (error "not a bytevector" x))
-    (let loop ((x x) (y y) (rest rest))
-      (unless (bytevector? y)
-        (error "not a bytevector" y))
-      (and (binary x y)
-           (or (null? rest)
-               (and (pair? rest)
-                    (loop y (car rest) (cdr rest))))))))
-
-(define bytevector<? (make-nary bytevector<?-2))
-(define bytevector<=? (make-nary bytevector<=?-2))
-(define bytevector>? (make-nary (lambda (x y)
-                                  (bytevector<?-2 y x))))
-(define bytevector>=? (make-nary (lambda (x y)
-                                   (bytevector<=?-2 y x))))
 
 (define bytevector-fill!
   (case-lambda

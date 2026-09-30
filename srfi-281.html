@@ -9,6 +9,9 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
     <meta charset="utf-8">
     <title>SRFI 281: Bytevector Utilities</title>
     <style>
+            .strikethrough {
+              text-decoration: line-through;
+            }
             table {
               border: 1px solid;
               margin-bottom: 12pt;
@@ -20,6 +23,14 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
                 --text-color: black;
                 --visited-link-color: purple;
               }
+
+              pre {
+                  border: 1px solid;
+                  padding: 7.5px;
+                  background-color: #f0f0f0;
+                  margin-bottom: 18pt;
+              }
+
               code {
                   background-color: #f0f0f0;
               }
@@ -32,6 +43,14 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
                 --text-color: #e0e0e0;
                 --visited-link-color: Orchid;
               }
+
+              pre {
+                  border: 1px solid;
+                  padding: 7.5px;
+                  background-color: #2b2b2b;
+                  margin-bottom: 18pt;
+              }
+
               code {
                 background-color: #2b2b2b;
               }
@@ -46,9 +65,6 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
 
             .normal-font {
               font-family: sans-serif;
-            }
-            .no-bg {
-              background-color: var(--background-color);
             }
 
             .feature {
@@ -76,7 +92,7 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
             }
 
             .example-code {
-              background-color: var(--background-color);
+              /* background-color: var(--background-color); */
               display: inline-block;
               min-width: 46ch;
             }
@@ -105,12 +121,6 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
               font-family: serif;
               font-style: italic;
             }
-
-            h2 > a[href^="#"]::before,
-            h3 > a[href^="#"]::before,
-            h4 > a[href^="#"]::before {
-              content: "¶";
-            }
     </style>
     <link href="/favicon.png" rel="icon" sizes="192x192" type="image/png">
     <link rel="stylesheet" href="https://srfi.schemers.org/srfi.css" type="text/css">
@@ -137,11 +147,13 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
 <ul>
   <li><a href="#abstract"> Abstract</a></li>
   <li><a href="#issues"> Issues</a></li>
-  <li><a href="#rationale"> Rationale</a></li>
+  <li><a href="#rationale"> Rationale</a>
+      <ul>
+      <li><a href="#default-behavior"> Default behavior of decoders</a></li>
+      </ul>
   <li>
     <a href="#specification">Specification</a>
     <ul>
-      <li><a href="#default-behavior"> Default behavior of decoders</a></li>
       <li><a href="#convention"> Conventions</a></li>
       <li><a href="#optional-required"> Optional and required features</a></li>
       <li><a href="#composite-library"> Composite library</a></li>
@@ -162,8 +174,8 @@ SPDX-License-Identifier: MIT AND LicenseRef-R6RS
         <a href="#unicode-libraries"> Unicode libraries</a>
         <ul>
           <li><a href="#error-handling-mode-section"> Error-handling mode macro</a></li>
-          <li><a href="#encoding-procedures"> Encoding procedures</a></li>
           <li><a href="#decoding-procedures"> Decoding procedures</a></li>
+          <li><a href="#encoding-procedures"> Encoding procedures</a></li>
         </ul>
       </li>
     </ul>
@@ -191,7 +203,7 @@ Library summaries</a></li>
 <h2 id="issues"><a href="#issues"></a> Issues</h2>
 
 <ol>
-<li>Should <code><a href="#native-endianness">native-endianness</a></code>
+<li class="strikethrough">Should <code><a href="#native-endianness">native-endianness</a></code>
     be a procedure or a value?
     The <span class="report-name">R<sup>7</sup>RS</span> Large usually
     does not have procedures like this: the
@@ -206,9 +218,9 @@ Library summaries</a></li>
 </li>
 <li>Needs more examples (they can be adapted from the
 <span class="report-name">R<sup>6</sup>RS</span>).</li>
-<li>The sample implementation is mostly complete, but is missing a few
+<li class="strikethrough">The sample implementation is mostly complete, but is missing a few
     corner cases, particularly in the serialization library.</li>
-<li>I want this SRFI to contain an API comparable to
+<li><div class="strikethrough">I want this SRFI to contain an API comparable to
     <a href="https://srfi.schemers.org/srfi-207/">SRFI 207</a>
     and <a href="https://srfi.schemers.org/srfi-152/">SRFI 152</a>
     adapted to strings and without reference to ASCII characters.
@@ -237,6 +249,14 @@ Library summaries</a></li>
          end argument.
     </li>
     </ul>
+    </div>
+    <p>
+      Bytestring style procedures have been removed, and will be
+      proposed in a different SRFI.
+    </p>
+</li>
+<li>This needs to be tested on other implementations, such as TR7, Gambit,
+    CHICKEN 6, Sagittarius, and Capy, for their various other features.
 </li>
 </ol>
 
@@ -252,7 +272,8 @@ Library summaries</a></li>
 
 <ol>
 <li>The <code>bytevector-copy!</code> procedure has a different argument
-    order than the procedure in the <span class="report-name">R<sup>7</sup>RS</span>
+    order and interprets its last argument differently than the
+    procedure in the <span class="report-name">R<sup>7</sup>RS</span>
     base library.</li>
 <li>The procedure <code>bytevector-copy</code> is a subset of the behavior
     in the <span class="report-name">R<sup>7</sup>RS</span>.</li>
@@ -296,8 +317,6 @@ Library summaries</a></li>
   in their standard libraries.
 </p>
 
-<h2 id="specification"><a href="#specification"></a>Specification</h2>
-
 <h3 id="default-behavior"><a href="#default-behavior"></a> Default behavior of decoders</h3>
 
 <p>
@@ -335,20 +354,23 @@ Library summaries</a></li>
 </p>
 
 <pre
->(define (r6rs:utf8->string bv)
-  (utf8->string bv 0 (bytevector-length bv) 'replace))</pre>
+><code>(define (r6rs:utf8->string bv)
+  (utf8->string bv 0 (bytevector-length bv) 'replace))</code></pre>
 
 <p>
   If one specifically wants the <span class="report-name">R<sup>6</sup>RS</span>
   procedures, one can import <code>(rnrs bytevectors)</code>.
 </p>
 
+
+<h2 id="specification"><a href="#specification"></a>Specification</h2>
+
 <h3 id="convention"><a href="#convention"></a> Conventions</h3>
 
 <p>
-  All procedures in this SRFI return newly allocated containers
-  (strings, lists, and bytevectors) except that they may not be newly
-  allocated if those containers are empty.
+  All procedures in this SRFI that return containers (strings, lists,
+  and bytevectors) return newly-allocated ones, except that they may
+  not be newly allocated if those containers are empty.
 </p>
 
 <p>
@@ -424,7 +446,7 @@ Library summaries</a></li>
 <p>
   The library <code>(srfi 281 base)</code> exports
   the <span class="report-name">R<sup>7</sup>RS</span> procedures
-  <code>bytevector?</code>, <code>bytevector-length</code>, and
+  <code>bytevector?</code>, <code>bytevector</code>, <code>bytevector-length</code>, and
   <code>bytevector-copy</code>.
 </p>
 
@@ -447,7 +469,7 @@ Library summaries</a></li>
   The <span class="report-name">R<sup>
 6</sup>RS</span> only has the
   static <code><a href="#endianness">endianness</a></code> macro, which
-  cannot be portably implemented in <code>syntax-rules</code>.
+  cannot be implemented in <code>syntax-rules</code>.
 </p></div>
 
 <div class="feature">
@@ -462,7 +484,6 @@ Library summaries</a></li>
 <div class="feature">
 <span class="category">(srfi 281 base)<br>procedure</span>
 <code class="signature">(<a id="make-bytevector" href="#make-bytevector">make-bytevector</a>
-                         <var>bytevector</var>
                          <var>k</var>
                          [<var>b8</var>])</code>
 </div>
@@ -474,42 +495,32 @@ Library summaries</a></li>
   elements are unspecified.
 </p>
 
+<pre><code class="example-code"
+>(make-bytevector 3 -128)</code> ⇒ <code>#u8(#x80 #x80 #x80)</code></pre>
+
+<div class="feature">
+<span class="category">(srfi 281 base)<br>procedure</span>
+<code class="signature">(<a id="bytevector" href="#bytevector">bytevector</a>
+                         <var>b8</var> …)</code>
+</div>
+
+<p>
+  Return a newly allocated bytevector made up of the arguments.
+</p>
+
 <div class="feature">
 <span class="category">(srfi 281 base)<br>procedure</span>
 <code class="signature">(<a id="bytevectoreqp" href="#bytevectoreqp">bytevector=?</a>
                          <var>bytevector<sub>1</sub></var>
                          <var>bytevector<sub>2</sub></var>
                          <var>bytevector<sub>3</sub></var>
-                         …)</code><br>
-<code class="signature">(<a id="bytevectorltp" href="#bytevectorltp">bytevector&lt;?</a>
-                         <var>bytevector<sub>1</sub></var>
-                         <var>bytevector<sub>2</sub></var>
-                         <var>bytevector<sub>3</sub></var>
-                         …)</code><br>
-<code class="signature">(<a id="bytevectorgtp" href="#bytevectorgtp">bytevector&gt;?</a>
-                         <var>bytevector<sub>1</sub></var>
-                         <var>bytevector<sub>2</sub></var>
-                         <var>bytevector<sub>3</sub></var>
-                         …)</code><br>
-<code class="signature">(<a id="bytevectorltep" href="#bytevectorltep">bytevector&lt;=?</a>
-                         <var>bytevector<sub>1</sub></var>
-                         <var>bytevector<sub>2</sub></var>
-                         <var>bytevector<sub>3</sub></var>
-                         …)</code><br>
-<code class="signature">(<a id="bytevectorgtep" href="#bytevectorgtep">bytevector&gt;=?</a>
-                         <var>bytevector<sub>1</sub></var>
-                         <var>bytevector<sub>2</sub></var>
-                         <var>bytevector<sub>3</sub></var>
-                         …)</code><br>
+                         …)</code>
 </div>
 
 <p>
-  These procedures compare bytevectors lexicographically. Two
-  <var>bytevector</var>s are equal if they have the same number of
-  elements and equal bytes at all valid indices. If two bytevectors
-  differ in length but are the same up to the length of the shorter
-  bytevector, the shorter bytevector is considered to be less than
-  the longer bytevector.
+  Returns <code>#t</code> if each bytevector is of the same length
+  and has equal bytes at all valid indices, and <code>#f</code>
+  otherwise.
 </p>
 
 <div class="boxed">
@@ -531,6 +542,12 @@ The order predicates come from <a href="https://srfi.schemers.org/srfi-207/">SRF
   to <var>end</var> with the appropriate byte value of <var>b8</var>.
 </p>
 
+<pre
+>(define bv (make-bytevector 6 1))
+(bytevector-fill! bv -1 2 4)
+<code class="example-code">bv</code
+> ⇒ <code>#u8(1 1 #xFF #xFF 1 1)</code></pre>
+
 <h3 id="endianness-library"><a href="#endianness-library"></a> Endianness library</h3>
 <div class="feature">
 <span class="category">(srfi 281 endianness)<br>syntax</span>
@@ -538,14 +555,13 @@ The order predicates come from <a href="https://srfi.schemers.org/srfi-207/">SRF
 </div>
 
 <p>
-The name of ⟨<var>endianness symbol</var>⟩ must be a symbol
-describing an endianness. The expression <code>(endianness
+If ⟨<var>endianness symbol</var>⟩ is a symbol supported by the
+implementation as an endianness, then the expression <code>(endianness
 ⟨<var>endianness symbol</var>⟩)</code> evaluates to the symbol named
-⟨<var>endianness symbol</var>⟩. If
-⟨<var>endianness symbol</var>⟩ is a symbol not supported by the
-implementation, an error is raised.
+⟨<var>endianness symbol</var>⟩. If ⟨<var>endianness symbol</var>⟩
+is a symbol not supported by the implementation, an error is raised when
+this form is expanded.
 </p>
-
 
 <div class="boxed">
 <p>
@@ -560,7 +576,66 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
   <a href="https://srfi.schemers.org/srfi-207/">SRFI 207</a>
   on account of their general applicability to bytevectors.
   They now take <var>start</var> and <var>end</var>
-  arguments and are no longer required to signal errors.
+  arguments.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 serialization)<br>procedure</span>
+<code class="signature">(<a id="deserialization-errorp" href="#deserialization-errorp"
+                        >deserialization-error?</a> <var>obj</var>)</code>
+</div>
+
+
+<p>
+  When a deserialization procedure encounters an error, it signals an
+  error that satisfies this predicate.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 serialization)<br>procedure</span>
+<code class="signature">(<a id="deserialization-error-string" href="#deserialization-error-string"
+                        >deserialization-error-string</a> <var>e</var>)</code>
+</div>
+
+<p>
+  It is an error if <var>e</var> does not satisfy
+  <a href="#deserialization-error"><code>deserialization-error?</code></a>.
+</p>
+
+<p>
+  Returns the string that was being deserialized.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 serialization)<br>procedure</span>
+<code class="signature">(<a id="deserialization-error-start" href="#deserialization-error-start"
+                        >deserialization-error-start</a> <var>e</var>)</code><br>
+<code class="signature">(<a id="deserialization-error-end" href="#deserialization-error-end"
+                        >deserialization-error-end</a> <var>e</var>)</code><br>
+</div>
+
+<p>
+  It is an error if <var>e</var> does not satisfy
+  <a href="#deserialization-error"><code>deserialization-error?</code></a>.
+</p>
+
+<p>
+  Return the index in the string that is the start/end of the offending
+  span of characters.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 serialization)<br>procedure</span>
+<code class="signature">(<a id="deserialization-error-message" href="#deserialization-error-message"
+                        >deserialization-error-message</a> <var>e</var>)</code><br>
+</div>
+<p>
+  It is an error if <var>e</var> does not satisfy
+  <a href="#deserialization-error"><code>deserialization-error?</code></a>.
+</p>
+
+<p>
+  Return an error message about the deserialization error.
 </p>
 
 <div class="feature">
@@ -576,6 +651,10 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
   as upper-case ASCII hexadecimal digits.
 </p>
 
+<pre
+><code class="example-code">(bytevector->hex-string #u8(#xFE #xFF))</code
+> ⇒ <code>"FEFF"</code></pre>
+
 <div class="feature">
 <span class="category">(srfi 281 serialization)<br>procedure</span>
 <code class="signature">(<a id="hex-string-to-bytevector" href="#hex-string-to-bytevector">hex-string-&gt;bytevector</a>
@@ -584,15 +663,22 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 </div>
 
 <p>
-  It is an error if <var>string</var> between <var>start</var> and
-  <var>end</var> is not made up of pairs of hexadecimal digits.
+  Returns a newly allocated bytevector, where each sequential pair of hexadecimal
+  digits in <var>string</var> between <var>start</var> and <var>end</var> is
+  converted into the corresponding byte. Characters satisfying
+  <code>char-whitespace?</code> are ignored.
 </p>
 
 <p>
-  Returns a newly allocated bytevector, where each sequential pair of hexadecimal
-  digits in <var>string</var> between <var>start</var> and <var>end</var> is
-  converted into the corresponding byte.
+  If <var>string</var> between <var>start</var> and <var>end</var>
+  is not made up of pairs of hex digits, an error satisfying <a
+  href="#deserialization-error"><code>deserializtion-error?</code></a>
+  is raised with the invalid part of the string as the start and end.
 </p>
+
+<pre
+><code class="example-code">(hex-string->bytevector "abcdef")</code
+> ⇒ <code>#u8(#xAB #xCD #xEF)</code></pre>
 
 <div class="feature">
 <span class="category">(srfi 281 serialization)<br>procedure</span>
@@ -641,7 +727,14 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 
 <p>This description defers to RFC 4648.</p>
 
-<h3 id="u8-library"><a href="#u8-library"></a> 8-bit integer libraries</h3>
+<p>
+  If <var>string</var> in between the two indices is
+  not a valid base64 string, an error satisfying <a
+  href="#deserialization-error"><code>deserializtion-error?</code></a>
+  is raised with the invalid part of the string as the start and end.
+</p>
+
+<h3 id="u8-library"><a href="#u8-library"></a> Unsigned 8-bit integer libraries</h3>
 
 <p>
   The <code>(srfi 281 u8)</code> library exports the <span
@@ -675,6 +768,8 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
   Copies the bytes of <var>bytevector</var> from <var>start</var> to <var>end</var>
   to a newly allocated list.
 </p>
+
+<h3 id="s8-library"><a href="#s8-library"></a> Signed 8-bit integer libraries</h3>
 
 <div class="feature">
 <span class="category">(srfi 281 s8)<br>procedure</span>
@@ -1185,7 +1280,7 @@ Only the name of ⟨<var>endianness symbol</var>⟩ is significant.
 <dl>
 <dt><code>raise</code></dt>
 <dd>Raise an exception that satisfies <a
-href="#i-o-decoding-errorp"><code>i/o-decoding-error?</code></a> when
+href="#unicode-decoding-error"><code>unicode-decoding-error?</code></a> when
 the procedure attempts to decode invalid
     data.</dd>
 <dt><code>replace</code></dt>
@@ -1226,13 +1321,63 @@ the procedure attempts to decode invalid
 
 <div class="feature">
 <span class="category">(srfi 281 unicode)<br>procedure</span>
-<code class="signature">(<a id="i-o-decoding-errorp" href="#i-o-decoding-errorp">i/o-decoding-error?</a>
+<code class="signature">(<a id="unicode-decoding-errorp" href="#unicode-decoding-errorp">unicode-decoding-error?</a>
                          <var>obj</var>)</code><br>
 </div>
 
 <p>
   Return <code>#t</code> if <var>obj</var> is an exception that was
   raised by a decoding procedure.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 unicode)<br>procedure</span>
+<code class="signature">(<a id="unicode-decoding-error-bytevector"
+                            href="#unicode-decoding-error-bytevector"
+                         >unicode-decoding-error-bytevector</a>
+                         <var>e</var>)</code><br>
+</div>
+<p>
+  It is an error if <var>e</var> does not satisfy
+  <a href="#unicode-decoding-errorp"><code>unicode-decoding-error?</code></a>.
+</p>
+
+<p>
+  Returns the bytevector that was being decoded.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 unicode)<br>procedure</span>
+<code class="signature">(<a id="unicode-decoding-error-start"
+                            href="#unicode-decoding-error-start"
+                         >unicode-decoding-error-start</a>
+                         <var>e</var>)</code><br>
+<code class="signature">(<a id="unicode-decoding-error-end"
+                            href="#unicode-decoding-error-end"
+                         >unicode-decoding-error-end</a>
+                         <var>e</var>)</code><br>
+</div>
+<p>
+  It is an error if <var>e</var> does not satisfy
+  <a href="#unicode-decoding-errorp"><code>unicode-decoding-error?</code></a>.
+</p>
+<p>
+  Return the index in the bytevector that is the start/end of the offending
+  span of bytes.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 serialization)<br>procedure</span>
+<code class="signature">(<a id="unicode-decoding-error-message" href="#unicode-decoding-error-message"
+                        >unicode-decoding-error-message</a> <var>e</var>)</code><br>
+</div>
+<p>
+  It is an error if <var>e</var> does not satisfy
+  <a href="#unicode-decoding-error"><code>unicode-decoding-error?</code></a>.
+</p>
+
+<p>
+  Return an error message about the decoding error.
 </p>
 
 <h4 id="error-handling-mode-section"><a href="#error-handling-mode-section"
@@ -1249,10 +1394,12 @@ the procedure attempts to decode invalid
                          ⟨symbol⟩)</code><br>
 </div>
 <p>
-  The name of ⟨symbol⟩ must be a symbol describing an error-handling
-  mode. The expression <code>(error-handling-mode ⟨symbol⟩)</code>
-  evaluates to the symbol named ⟨symbol⟩. If ⟨symbol⟩ is a symbol
-  not supported by the implementation, an error is raised.
+  If ⟨<var>symbol</var>⟩ is a symbol supported by the
+  implementation as an error-handling mode, then the expression
+  <code>(error-handling-mode ⟨symbol⟩)</code> evaluates to the symbol
+  named ⟨<var>symbol</var>⟩. If ⟨<var>symbol</var>⟩ is a symbol
+  not supported by the implementation, an error is raised when this form
+  is expanded.
 </p>
 
 <div class="boxed">
@@ -1261,7 +1408,7 @@ the procedure attempts to decode invalid
 Only the name of ⟨<var>symbol</var>⟩ is significant.
 </p></div>
 
-<h4 id="encoding-procedures"><a href="#encoding-procedures"></a> Encoding procedures</h4>
+<h4 id="decoding-procedures"><a href="#decoding-procedures"></a> Decoding procedures</h4>
 <div class="feature">
 <span class="category">(srfi 281 unicode)<br>procedure</span>
 <code class="signature">(<a id="utf8-to-string" href="#utf8-to-string">utf8-&gt;string</a>
@@ -1310,7 +1457,7 @@ specifies the endianness of the encoding, and any
 BOM in the encoding is decoded as a regular character.
 </p>
 
-<h4 id="decoding-procedures"><a href="#decoding-procedures"></a> Decoding procedures</h4>
+<h4 id="encoding-procedures"><a href="#encoding-procedures"></a> Encoding procedures</h4>
 <div class="feature">
 <span class="category">(srfi 281 unicode)<br>procedure</span>
 <code class="signature">(<a id="string-to-utf8" href="#string-to-utf8">string-&gt;utf8</a>
@@ -1346,6 +1493,130 @@ BOM in the encoding is decoded as a regular character.
 
 <p>
   If <var>endianness</var> is not specified, it defaults to <code>big</code>.
+</p>
+
+<h4 id="conditions"><a href="#conditions"></a> Conditions library</h4>
+
+<p>
+  This library must be provided on
+  <span class="report-name">R<sup>6</sup>RS</span> implementations,
+  but is optional otherwise.
+  In <span class="report-name">R<sup>6</sup>RS</span> implementations,
+  these objects must be created using the condition system.
+  These conditions are designed for composite condition systems, which
+  might not be the same as the
+  <span class="report-name">R<sup>6</sup>RS</span> condition system.
+</p>
+
+<p>
+  An object that satisfies
+  <a href="#deserialization-errorp"><code>deserialization-error?</code></a>
+  necessarily satisfies
+  <a href="#deserialization-conditionp"><code>deserialization-condition?</code></a>
+  and
+  <a href="#string-range-conditionp"><code>string-range-condition?</code></a>.
+  An object that satisfies
+  <a href="#unicode-decoding-errorp"><code>unicode-decoding-error?</code></a>
+  necessarily satisfies
+  <a href="#unicode-decoding-conditionp"><code>unicode-decoding-condition?</code></a>
+  and
+  <a href="#bytevector-range-conditionp"><code>bytevector-range-condition?</code></a>.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 condition)</span><br>
+<span class="category">condition type</span>
+<code class="signature"><a id="deserialization-condition" href="#deserialization-condition">&deserialization-condition</a></code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="deserialization-conditionp"
+                            href="#deserialization-conditionp"
+                        >deserialization-condition?</a> <var>obj</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="make-deserialization-condition"
+                            href="#make-deserialization-condition"
+                        >make-deserialization-condition</a>)</code><br>
+</div>
+
+<p>
+  Condition object for conditions related to deserialization.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 condition)</span><br>
+<span class="category">condition type</span>
+<code class="signature"><a id="unicode-decoding-condition"
+                           href="#unicode-decoding-condition"
+                        >&unicode-decoding-condition</a></code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="unicode-decoding-conditionp"
+                            href="#unicode-decoding-conditionp"
+                        >unicode-decoding-condition?</a> <var>obj</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="make-unicode-decoding-condition"
+                            href="#make-unicode-decoding-condition"
+                        >make-unicode-decoding-condition</a>)</code><br>
+</div>
+<p>
+  Condition object for conditions related to Unicode decoding.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 condition)</span><br>
+<span class="category">condition type</span>
+<code class="signature"><a id="string-range-condition"
+                           href="#string-range-condition">&string-range-condition</a></code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="string-range-conditionp" href="#string-range-conditionp"
+                        >string-range-condition?</a> <var>obj</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="make-string-range-condition"
+                           href="#make-string-range-condition">make-string-range-condition</a
+                           > <var>string</var> <var>start</var> <var>end</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="string-range-condition-string"
+                           href="#string-range-condition-string">string-range-condition-string</a
+                           > <var>e</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="string-range-condition-start"
+                           href="#string-range-condition-start">string-range-condition-start</a
+                           > <var>e</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="string-range-condition-end"
+                           href="#string-range-condition-start">string-range-condition-end</a
+                           > <var>e</var>)</code><br>
+</div>
+
+<p>
+  Condition relating to a range in a string.
+</p>
+
+<div class="feature">
+<span class="category">(srfi 281 condition)</span><br>
+<span class="category">condition type</span>
+<code class="signature"><a id="bytevector-range-condition"
+                           href="#bytevector-range-condition">&bytevector-range-condition</a></code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="bytevector-range-conditionp" href="#bytevector-range-conditionp"
+                        >bytevector-range-condition?</a> <var>obj</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="make-bytevector-range-condition"
+                           href="#make-bytevector-range-condition">make-bytevector-range-condition</a
+                           > <var>bytevector</var> <var>start</var> <var>end</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="bytevector-range-condition-bytevector"
+                           href="#bytevector-range-condition-bytevector">bytevector-range-condition-bytevector</a
+                           > <var>e</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="bytevector-range-condition-start"
+                           href="#bytevector-range-condition-start">bytevector-range-condition-start</a
+                           > <var>e</var>)</code><br>
+<span class="category">procedure</span>
+<code class="signature">(<a id="bytevector-range-condition-end"
+                           href="#bytevector-range-condition-start">bytevector-range-condition-end</a
+                           > <var>e</var>)</code><br>
+</div>
+<p>
+  Condition relating to a range in a bytevector.
 </p>
 
 <h2 id="implementation"><a href="#implementation"></a> Implementation</h2>
@@ -1426,8 +1697,10 @@ Library summaries</h2>
 <code><a href="#native-endianness">native-endianness</a></code><sup>6</sup>
 <code>bytevector?</code><sup>6,7</sup>
 <code><a href="#make-bytevector">make-bytevector</a></code><sup>6</sup>
+<code><a href="#bytevector">bytevector</a></code><sup>6</sup>
 <code><a href="#bytevector-fill">bytevector-fill!</a></code>
 <code>bytevector-length</code><sup>6,7</sup>
+<code>bytevector</code><sup>7</sup>
 <code><a href="#bytevectoreqp">bytevector=?</a></code>
 <code>bytevector-copy</code><sup>7</sup>
 </p>
@@ -1439,8 +1712,13 @@ Library summaries</h2>
 
 <h3 id="srfi-281-serialization"><code>(srfi 281 serialization)</code></h3>
 <p class="never-break-inside">
+<code><a href="#deserialization-errorp">deserialization-error?</a></code>
+<code><a href="#deserialization-error-string">deserialization-error-string</a></code>
+<code><a href="#deserialization-error-start">deserialization-error-start</a></code>
+<code><a href="#deserialization-error-end">deserialization-error-end</a></code>
+<code><a href="#deserialization-error-message">deserialization-error-message</a></code>
 <code><a href="#bytevector-to-hex-string">bytevector-&gt;hex-string</a></code>
-<code><a href="#hex-string-to-bytevector">hex-string-&gt;bytevector></a></code>
+<code><a href="#hex-string-to-bytevector">hex-string-&gt;bytevector</a></code>
 <code><a href="#bytevector-to-base64">bytevector-&gt;base64</a></code>
 <code><a href="#base64-to-bytevector">base64-&gt;bytevector</a></code>
 </p>
@@ -1552,7 +1830,11 @@ Library summaries</h2>
 <h3 id="srfi-281-unicode"><code>(srfi 281 unicode)</code></h3>
 <p class="never-break-inside">
 <code><a href="#error-handling-modep">error-handling-mode?</a></code>
-<code><a href="#i-o-decoding-errorp">i/o-decoding-error?</a></code><sup>6</sup>
+<code><a href="#unicode-decoding-errorp">unicode-decoding-error?</a></code>
+<code><a href="#unicode-decoding-error-bytevector" >unicode-decoding-error-bytevector</a></code>
+<code><a href="#unicode-decoding-error-start" >unicode-decoding-error-start</a></code>
+<code><a href="#unicode-decoding-error-end" >unicode-decoding-error-end</a></code>
+<code><a href="#unicode-decoding-error-message">unicode-decoding-error-message</a></code>
 <code><a href="#utf8-to-string">utf8-&gt;string</a></code>
 <code><a href="#utf16-to-string">utf16-&gt;string</a></code>
 <code><a href="#utf32-to-string">utf32-&gt;string</a></code>
